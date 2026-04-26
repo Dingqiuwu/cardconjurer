@@ -18,6 +18,7 @@ const frameNames = new Map ([
 	['Color Identity Pips', 'M15CIPips'],
 	['"The List" Stamp', 'TheList'],
 	['Lands', 'M15Lands'],
+	['Prepare (Secrets of Strixhaven)', 'Prepare'],
 	['Stations', 'StationRegular'],
 	['Borderless Stations', 'StationBorderless'],
 	['Omens (Tarkir Dragonstorm)', 'Omen'],
@@ -46,6 +47,7 @@ const frameNames = new Map ([
 	['Brawl Legend Crowns', 'Brawl'],
 	// Showcase
 	['Pixel (TMT)', 'PixelTMT'],
+	['Sewer (TMT)', 'SewerTMT'],
 	['Mystical Archive (SOA)', 'MysticalArchiveSOA'],
 	['Fable (ECL)', 'FableECL'],
 	['Neon Ink (TLA)', 'NeonInk'],

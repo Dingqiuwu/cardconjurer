@@ -270,52 +270,42 @@
 
 								<h5 class='margin-top'>文本代码:</h5>
 								<div class='text-codes margin-bottom padding'>
-									<h5>代码</h5><h5>结果</h5>
-									<h5>{cardname}</h5><h5>插入卡片名称（或使用波浪号：~）</h5>
-
-									<h5>{Lins}</h5><h5>在左边插入一个小空间</h5>
-									<h5>{Rins}</h5><h5>在左边删除一个小空间</h5>
-									<h5>{-}</h5><h5>插入一个em-dash</h5>
-
-									<h5>{i}</h5><h5>斜体化文本</h5>
-									<h5>{/i}</h5><h5>移除斜体</h5>
-									<h5>{bold}</h5><h5>加粗文本</h5>
-									<h5>{/bold}</h5><h5>移除加粗</h5>
-
-									<h5>{lns}</h5><h5>移动到下一行，不带额外空间（代表行-无空间）</h5>
-
-									<h5>{divider}</h5><h5>移动到下一行并绘制风味文本条</h5>
-									<h5>{flavor}</h5><h5>移动到下一行，绘制风味文本条，并斜体化</h5>
-									<h5>{oldflavor}</h5><h5>斜体化并添加换行符</h5>
-									<h5>{linespacing#num}</h5><h5>更改行距为#num</h5>
-									<h5>{fontsize#pt}</h5><h5>将字体大小更改为#pt（绝对）</h5>
-									<h5>{fontsize#}</h5><h5>将字体大小更改为#像素（相对 - 使用负整数缩小文本 - ie '{fontsize-12}')</h5>
-									<h5>{fontcolor___}</h5><h5>将字体颜色更改为___（ie '{fontcolor#00FF00}')</h5>
-
-									<h5>{left}</h5><h5>将文本对齐到左边</h5>
-									<h5>{center}</h5><h5>将文本对齐到中心</h5>
-									<h5>{right}</h5><h5>将文本对齐到右边</h5>
-									<h5>{justify-left}</h5><h5>将文本对齐到左边</h5>
-
-									<h5>{justify-center}</h5><h5>将文本对齐到中心</h5>
-									<h5>{justify-right}</h5><h5>将文本对齐到右边</h5>
-									<h5>{permashift#,$}</h5><h5>移动文本#像素右移$像素。推荐用于移动文本到较大距离</h5>
-
-									<h5>{up#}</h5><h5>移动文本#像素向上</h5>
-									<h5>{down#}</h5><h5>移动文本#像素向下</h5>
-									<h5>{left#}</h5><h5>移动文本#像素向左</h5>
-									<h5>{right#}</h5><h5>移动文本#像素向右</h5>
-
-									<h5>{shadow#}</h5><h5>更改阴影距离为#（使用{shadow0}移除阴影）</h5>
-									<h5>{shadowcolor#}</h5><h5>更改阴影颜色为#</h5>
-
-									<h5>{indent}</h5><h5>将段落缩进到当前点</h5>
-									<h5>{/indent}</h5><h5>移除段落缩进</h5>
-									<h5>{kerning#}</h5><h5>更改字距为#</h5>
-
-									<h5>{roll___}</h5><h5>用于骰子卡（如AFR）- 无论你填入什么，都会加粗，交替段落会变暗。</h5>
-
-									<h5>Notes</h5><h5>对于颜色，你可以使用HTML颜色代码（如'green'）、十六进制颜色代码（如'#00FF00'）或rgb（如'rgb(0,255,0)'）</h5>
+									<h5>Code</h5><h5>Result</h5>
+									<h5>{cardname}</h5><h5>Inserts the name of the card (or use a tilde: ~)</h5>
+									<h5>{-}</h5><h5>Inserts an em-dash</h5>
+									<h5>{i}</h5><h5>Italicizes text</h5>
+									<h5>{/i}</h5><h5>Removes italicization</h5>
+									<h5>{bold}</h5><h5>Bolds text</h5>
+									<h5>{/bold}</h5><h5>Removes bold</h5>
+									<h5>{lns}</h5><h5>Moves to the next line without an extra space (stands for line-no-space)</h5>
+									<h5>{divider}</h5><h5>Moves to the next line and draws the flavor text bar</h5>
+									<h5>{flavor}</h5><h5>Moves to the next line, draws the flavor text bar, and italicizes</h5>
+									<h5>{oldflavor}</h5><h5>Italicizes and adds line breaks</h5>
+									<h5>{fontsize#pt}</h5><h5>Changes the font size to #pt (absolute)</h5>
+									<h5>{fontsize#}</h5><h5>Changes the font size by # pixels (relative - use negative integers to shrink text - ie '{fontsize-12}')</h5>
+									<h5>{fontcolor___}</h5><h5>Changes the font color to ___ (ie '{fontcolor#00FF00}')</h5>
+									<h5>{left}</h5><h5>Aligns text to the left</h5>
+									<h5>{center}</h5><h5>Aligns text to the center</h5>
+									<h5>{right}</h5><h5>Aligns text to the right</h5>
+									<h5>{justify-left}</h5><h5>Justifies text to the left</h5>
+									<h5>{justify-center}</h5><h5>Justifies text to the center</h5>
+									<h5>{justify-right}</h5><h5>Justifies text to the right</h5>
+									<h5>{permashift#,$}</h5><h5>Moves the text # pixels right and $ pixels down. Recommended for moving the text over large distances</h5>
+									<h5>{up#}</h5><h5>Moves the text # pixels up</h5>
+									<h5>{down#}</h5><h5>Moves the text # pixels down</h5>
+									<h5>{left#}</h5><h5>Moves the text # pixels left</h5>
+									<h5>{right#}</h5><h5>Moves the text # pixels right</h5>
+									<h5>{shadow#}</h5><h5>Changes the shadow distance to # (use {shadow0} to remove the shadow)</h5>
+									<h5>{shadowcolor#}</h5><h5>Changes the shadow color to #</h5>
+									<h5>{outline#}</h5><h5>Changes the Outline Width to # (enables it if not already enabled)</h5>
+									<h5>{outlinecolor___}</h5><h5>Changes the Outline Color to ___ (ie '{outlinecolorblue}'</h5>
+									<h5>{bullet}</h5><h5>Does bullet point •</h5>
+									<h5>{indent}</h5><h5>Indents the rest of the paragraph to the current point</h5>
+									<h5>{/indent}</h5><h5>Removes paragraph indendation</h5>
+									<h5>{kerning#}</h5><h5>Changes the kerning (letter spacing) to #</h5>
+									<h5>{roll___}</h5><h5>Used for dice-rolling cards (like from AFR) - whatever you fill in for '___' will be bolded, and alternating paragraphs will be shaded.</h5>
+									<h5>{ruby:base:annotation}</h5><h5>For rendering furigana/pinyin annotations (requires manual font sizing)</h5>
+									<h5>Notes</h5><h5>For colors, you may use HTML color codes (ie 'green'), hex color codes (ie '#00FF00'), or rgb (ie 'rgb(0,255,0)'')</h5>
 								</div>
 								<h5>法术符号代码:</h5>
 								<div class='text-codes padding'>
@@ -909,6 +899,20 @@
 							<option value="Seventh">Seventh Edition</option>
 
 							<option disabled>Showcase frames</option>
+							<option value="JapanShowcase">Japan Showcase</option>
+							<option value="Vault">Vault (BIG)</option>
+
+							<option disabled>Alternative Layouts</option>
+							<option value="Adventure">Adventure</option>
+							<option value="Omen">Omen</option>
+							<option value="Prepare">Prepare</option>
+
+							<option disabled>Redone frames</option>
+							<option value="M15RegularNew">Regular (Accurate)</option>
+							<option value="FullArtNew">Full art (Accurate)</option>
+							<option value="UBNew">Universes Beyond (Accurate)</option>
+
+							<option disabled>Showcase frames</option>
 							<option value="Invocation">Invocation</option>
 
 							<option disabled>Custom frames</option>
@@ -1119,6 +1123,7 @@
 	-->
 
 	</div>
+	<script defer src='/js/autoFrame.js'></script>
 	<script defer src='/js/creator-23.js'></script>
 	<script defer src='/js/frameSearch.js'></script>
 <!-- END OF CONTENT -->
