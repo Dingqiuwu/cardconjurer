@@ -983,6 +983,24 @@ textarea.input {
 	border: 1px solid black;
 	padding: 0.5rem;
 }
+.mana-code-reference > h5 {
+	display: flex;
+	align-items: center;
+}
+.mana-symbol-strip {
+	flex-wrap: wrap;
+	gap: 0.3rem;
+	background: #20202066;
+}
+.mana-symbol-strip img {
+	width: 1.65rem;
+	height: 1.65rem;
+	object-fit: contain;
+	background: #d8d8d8;
+	border-radius: 50%;
+	padding: 0.05rem;
+	box-shadow: 0 1px 3px #0008;
+}
 /*download button*/
 .download {
 	text-align: center;

@@ -147,7 +147,8 @@ window.FontLoadTracker = {
 };
 
 //card object
-var card = {width:getStandardWidth(), height:getStandardHeight(), marginX:0, marginY:0, frames:[], artSource:fixUri('/img/blank.png'), artX:0, artY:0, artZoom:1, artRotate:0, setSymbolSource:fixUri('/img/blank.png'), setSymbolX:0, setSymbolY:0, setSymbolZoom:1, watermarkSource:fixUri('/img/blank.png'), watermarkX:0, watermarkY:0, watermarkZoom:1, watermarkLeft:'none', watermarkRight:'none', watermarkOpacity:0.4, version:'', manaSymbols:[]};
+var defaultArtBounds = {x:0.0767, y:0.1129, width:0.8476, height:0.4429};
+var card = {width:getStandardWidth(), height:getStandardHeight(), marginX:0, marginY:0, frames:[], artBounds:Object.assign({}, defaultArtBounds), artSource:fixUri('/img/blank.png'), artX:0, artY:0, artZoom:1, artRotate:0, setSymbolSource:fixUri('/img/blank.png'), setSymbolX:0, setSymbolY:0, setSymbolZoom:1, watermarkSource:fixUri('/img/blank.png'), watermarkX:0, watermarkY:0, watermarkZoom:1, watermarkLeft:'none', watermarkRight:'none', watermarkOpacity:0.4, version:'', manaSymbols:[]};
 window.cardDrawingPromiseResolver = null;
 //core images/masks
 const black = new Image(); black.crossOrigin = 'anonymous'; black.src = fixUri('/img/black.png');
@@ -160,6 +161,10 @@ const serial = new Image(); serial.crossOrigin = 'anonymous'; serial.src = fixUr
 art = new Image(); art.crossOrigin = 'anonymous'; art.src = blank.src;
 art.onerror = function() {if (!this.src.includes('/img/blank.png')) {this.src = fixUri('/img/blank.png');}}
 art.onload = artEdited;
+var artIsAnimatedGif = false;
+var artAnimationRequest = null;
+var artAnimationLastDraw = 0;
+var animatedArtHost = null;
 //set symbol
 setSymbol = new Image(); setSymbol.crossOrigin = 'anonymous'; setSymbol.src = blank.src;
 setSymbol.onerror = function() {
@@ -337,6 +342,7 @@ function toggleCreatorTabs(event, target) {
 	document.querySelector('#creator-menu-' + target).classList.remove('hidden');
 	selectSelectable(event);
 }
+window.toggleCreatorTabs = toggleCreatorTabs;
 function selectSelectable(event) {
 	var eventTarget = event.target.closest('.selectable');
 	Array.from(eventTarget.parentElement.children).forEach(element => element.classList.remove('selected'));
@@ -479,6 +485,9 @@ function loadManaSymbols(matchColor, manaSymbolPaths, size = [1, 1]) {
 		mana.set(manaSymbol.name, manaSymbol);
 		// manaSymbols.push(manaSymbol);
 	});
+	if (window.manaCodeReferenceGroups) {
+		renderManaCodeReference();
+	}
 }
 function findManaSymbolIndex(string) {
 	return mana.get(key) || -1;
@@ -486,6 +495,66 @@ function findManaSymbolIndex(string) {
 function getManaSymbol(key) {
 	return mana.get(key);
 }
+window.manaCodeReferenceGroups = [
+	{label:'{0}, {1}... {20}', codes:['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20']},
+	{label:'{w}, {u}, {b}, {r}, {g}', codes:['w', 'u', 'b', 'r', 'g']},
+	{label:'{c}, {x}, {y}, {z}, {s}', codes:['c', 'x', 'y', 'z', 's']},
+	{label:'{t}, {untap}, {oldtap}, {originaltap}', codes:['t', 'untap', 'oldtap', 'originaltap']},
+	{label:'{wu}, {wb}, {ub}... {gw}, {gu}', codes:['wu', 'wb', 'ub', 'ur', 'br', 'bg', 'rg', 'rw', 'gw', 'gu']},
+	{label:'{2w}, {2u}, {2b}, {2r}, {2g}', codes:['2w', '2u', '2b', '2r', '2g']},
+	{label:'{wp}, {up}, {bp}, {rp}, {gp}', codes:['wp', 'up', 'bp', 'rp', 'gp']},
+	{label:'{wup}, {wbp}, {ubp}... {gwp}, {gup}', codes:['wup', 'wbp', 'ubp', 'urp', 'brp', 'bgp', 'rgp', 'rwp', 'gwp', 'gup']},
+	{label:'{e}, {a}, {p}, {h}, {tk}', codes:['e', 'a', 'p', 'h', 'tk']},
+	{label:'{purple}, {inf}, {alchemy}', codes:['purple', 'inf', 'alchemy']},
+	{label:'{purplew}, {purpleu}... {2purple}, {purplep}', codes:['purplew', 'purpleu', 'purpleb', 'purpler', 'purpleg', '2purple', 'purplep']},
+	{label:'{cw}, {cu}, {cb}, {cr}, {cg}', codes:['cw', 'cu', 'cb', 'cr', 'cg']},
+	{label:'{brush}, {whitebrush}, {whitebar}', codes:['brush', 'whitebrush', 'whitebar']},
+	{label:'{xxbgw}, {xxbrg}... {xxwub}', codes:['xxbgw', 'xxbrg', 'xxgub', 'xxgwu', 'xxrgw', 'xxrwu', 'xxubr', 'xxurg', 'xxwbr', 'xxwub']},
+	{label:'{+0}, {+1}... {+9}', codes:['+0', '+1', '+2', '+3', '+4', '+5', '+6', '+7', '+8', '+9']},
+	{label:'{-1}, {-2}... {-9}', codes:['-1', '-2', '-3', '-4', '-5', '-6', '-7', '-8', '-9']},
+	{label:'{planeswalker}, {chaos}', codes:['planeswalker', 'chaos']}
+];
+function renderManaCodeReference() {
+	const reference = document.querySelector('#mana-code-reference');
+	if (!reference || typeof mana == 'undefined') { return; }
+	reference.innerHTML = '<h5>代码</h5><h5>实际效果</h5>';
+	const knownCodes = new Set();
+	window.manaCodeReferenceGroups.forEach(group => {
+		const codes = group.codes.filter(code => mana.has(code));
+		codes.forEach(code => knownCodes.add(code));
+		if (codes.length > 0) {
+			appendManaCodeReferenceRow(reference, group.label, codes);
+		}
+	});
+	const extraCodes = Array.from(mana.keys()).filter(code => !knownCodes.has(code) && code != 'bar' && !code.startsWith('back')).sort();
+	if (extraCodes.length > 0) {
+		appendManaCodeReferenceRow(reference, '当前牌框加载的额外符号', extraCodes);
+	}
+	const notesCode = document.createElement('h5');
+	notesCode.innerHTML = 'Notes';
+	const notesText = document.createElement('h5');
+	notesText.innerHTML = '混血/非瑞克西亚法术力适用于WUBRG；带斜杠的写法会自动匹配，例如 {w/u} 会使用 {wu}。';
+	reference.appendChild(notesCode);
+	reference.appendChild(notesText);
+}
+function appendManaCodeReferenceRow(reference, label, codes) {
+	const codeCell = document.createElement('h5');
+	codeCell.innerHTML = label;
+	const symbolCell = document.createElement('h5');
+	symbolCell.classList.add('mana-symbol-strip');
+	codes.forEach(code => {
+		const symbol = mana.get(code);
+		if (!symbol) { return; }
+		const img = document.createElement('img');
+		img.src = symbol.image.src;
+		img.alt = '{' + code + '}';
+		img.title = '{' + code + '}';
+		symbolCell.appendChild(img);
+	});
+	reference.appendChild(codeCell);
+	reference.appendChild(symbolCell);
+}
+renderManaCodeReference();
 //FRAME TAB
 function drawFrames() {
 	frameContext.clearRect(0, 0, frameCanvas.width, frameCanvas.height);
@@ -2575,8 +2644,66 @@ async function addTextbox(textboxType) {
 	}
 }
 //ART TAB
+function isGifSource(source) {
+	return !!source && (/^data:image\/gif/i.test(source) || /\.gif($|[?#])/i.test(source));
+}
+function setAnimatedArtHost(enabled) {
+	if (!enabled) {
+		if (animatedArtHost && animatedArtHost.parentNode) {
+			animatedArtHost.parentNode.removeChild(animatedArtHost);
+		}
+		animatedArtHost = null;
+		return;
+	}
+	if (!animatedArtHost) {
+		animatedArtHost = document.createElement('div');
+		animatedArtHost.style.position = 'fixed';
+		animatedArtHost.style.left = '0px';
+		animatedArtHost.style.top = '0px';
+		animatedArtHost.style.width = '50px';
+		animatedArtHost.style.height = '50px';
+		animatedArtHost.style.overflow = 'hidden';
+		animatedArtHost.style.opacity = '0.05';
+		animatedArtHost.style.background = 'transparent';
+		animatedArtHost.style.pointerEvents = 'none';
+		animatedArtHost.style.zIndex = '99999';
+	}
+	if (!animatedArtHost.parentNode) {
+		document.body.appendChild(animatedArtHost);
+	}
+	if (art.parentNode !== animatedArtHost) {
+		art.style.width = '50px';
+		art.style.height = '50px';
+		animatedArtHost.appendChild(art);
+	}
+}
+function setArtAnimationRefresh(enabled) {
+	artIsAnimatedGif = enabled;
+	setAnimatedArtHost(enabled);
+	if (!enabled) {
+		if (artAnimationRequest) {
+			cancelAnimationFrame(artAnimationRequest);
+			artAnimationRequest = null;
+		}
+		return;
+	}
+	if (artAnimationRequest) { return; }
+	const tick = function(timestamp) {
+		if (!artIsAnimatedGif) {
+			artAnimationRequest = null;
+			return;
+		}
+		if (!artAnimationLastDraw || timestamp - artAnimationLastDraw >= 100) {
+			drawCard();
+			artAnimationLastDraw = timestamp;
+		}
+		artAnimationRequest = requestAnimationFrame(tick);
+	};
+	artAnimationRequest = requestAnimationFrame(tick);
+}
 function uploadArt(imageSource, otherParams) {
 	ImageLoadTracker.track(imageSource);
+	setArtAnimationRefresh(isGifSource(imageSource));
 	art.src = imageSource;
 	if (otherParams && otherParams == 'autoFit') {
 		art.onload = function() {
@@ -2617,33 +2744,51 @@ function artEdited() {
 	card.artRotate = document.querySelector('#art-rotate').value;
 	drawCard();
 }
+function getArtBounds() {
+	if (!card.artBounds) {
+		card.artBounds = Object.assign({}, defaultArtBounds);
+	}
+	return card.artBounds;
+}
 function autoFitArt() {
+	const artBounds = getArtBounds();
+	if (!art.width || !art.height || !artBounds.width || !artBounds.height) {
+		return;
+	}
 	document.querySelector('#art-rotate').value = 0;
-	if (art.width / art.height > scaleWidth(card.artBounds.width) / scaleHeight(card.artBounds.height)) {
-		document.querySelector('#art-y').value = Math.round(scaleY(card.artBounds.y) - scaleHeight(card.marginY));
-		document.querySelector('#art-zoom').value = (scaleHeight(card.artBounds.height) / art.height * 100).toFixed(1);
-		document.querySelector('#art-x').value = Math.round(scaleX(card.artBounds.x) - (document.querySelector('#art-zoom').value / 100 * art.width - scaleWidth(card.artBounds.width)) / 2 - scaleWidth(card.marginX));
+	if (art.width / art.height > scaleWidth(artBounds.width) / scaleHeight(artBounds.height)) {
+		document.querySelector('#art-y').value = Math.round(scaleY(artBounds.y) - scaleHeight(card.marginY));
+		document.querySelector('#art-zoom').value = (scaleHeight(artBounds.height) / art.height * 100).toFixed(1);
+		document.querySelector('#art-x').value = Math.round(scaleX(artBounds.x) - (document.querySelector('#art-zoom').value / 100 * art.width - scaleWidth(artBounds.width)) / 2 - scaleWidth(card.marginX));
 	} else {
-		document.querySelector('#art-x').value = Math.round(scaleX(card.artBounds.x) - scaleWidth(card.marginX));
-		document.querySelector('#art-zoom').value = (scaleWidth(card.artBounds.width) / art.width * 100).toFixed(1);
-		document.querySelector('#art-y').value = Math.round(scaleY(card.artBounds.y) - (document.querySelector('#art-zoom').value / 100 * art.height - scaleHeight(card.artBounds.height)) / 2 - scaleHeight(card.marginY));
+		document.querySelector('#art-x').value = Math.round(scaleX(artBounds.x) - scaleWidth(card.marginX));
+		document.querySelector('#art-zoom').value = (scaleWidth(artBounds.width) / art.width * 100).toFixed(1);
+		document.querySelector('#art-y').value = Math.round(scaleY(artBounds.y) - (document.querySelector('#art-zoom').value / 100 * art.height - scaleHeight(artBounds.height)) / 2 - scaleHeight(card.marginY));
 	}
 	artEdited();
 }
 
 function centerArtX() {
+	const artBounds = getArtBounds();
+	if (!art.width || !art.height || !artBounds.width || !artBounds.height) {
+		return;
+	}
 	document.querySelector('#art-rotate').value = 0;
-	if (art.width / art.height > scaleWidth(card.artBounds.width) / scaleHeight(card.artBounds.height)) {
-		document.querySelector('#art-x').value = Math.round(scaleX(card.artBounds.x) - (document.querySelector('#art-zoom').value / 100 * art.width - scaleWidth(card.artBounds.width)) / 2 - scaleWidth(card.marginX));
+	if (art.width / art.height > scaleWidth(artBounds.width) / scaleHeight(artBounds.height)) {
+		document.querySelector('#art-x').value = Math.round(scaleX(artBounds.x) - (document.querySelector('#art-zoom').value / 100 * art.width - scaleWidth(artBounds.width)) / 2 - scaleWidth(card.marginX));
 	} else {
-		document.querySelector('#art-x').value = Math.round(scaleX(card.artBounds.x) - scaleWidth(card.marginX));
+		document.querySelector('#art-x').value = Math.round(scaleX(artBounds.x) - scaleWidth(card.marginX));
 	}
 	artEdited();
 }
 
 function centerArtY() {
+	const artBounds = getArtBounds();
+	if (!art.width || !art.height || !artBounds.width || !artBounds.height) {
+		return;
+	}
 	document.querySelector('#art-rotate').value = 0;
-	document.querySelector('#art-y').value = Math.round(scaleY(card.artBounds.y) - (document.querySelector('#art-zoom').value / 100 * art.height - scaleHeight(card.artBounds.height)) / 2 - scaleHeight(card.marginY));
+	document.querySelector('#art-y').value = Math.round(scaleY(artBounds.y) - (document.querySelector('#art-zoom').value / 100 * art.height - scaleHeight(artBounds.height)) / 2 - scaleHeight(card.marginY));
 	artEdited();
 }
 
@@ -3314,7 +3459,7 @@ function drawCard() {
 }
 //DOWNLOADING
 function downloadCard(alt = false, jpeg = false) {
-	if (card.infoArtist.replace(/ /g, '') == '' && !card.artSource.includes('/img/blank.png') && !card.artZoom == 0) {
+	if (cardNeedsArtistCredit()) {
 		notify('You must credit an artist before downloading!', 5);
 	} else {
 		// Prep file information
@@ -3344,6 +3489,326 @@ function downloadCard(alt = false, jpeg = false) {
 			document.body.appendChild(downloadElement);
 			downloadElement.click();
 			downloadElement.remove();
+		}
+	}
+}
+
+function cardNeedsArtistCredit() {
+	const artist = card.infoArtist || '';
+	const artSource = card.artSource || '';
+	const hasArt = artSource && !artSource.includes('/img/blank.png');
+	return artist.replace(/ /g, '') == '' && hasArt && card.artZoom != 0;
+}
+function setGifExportScale(value) {
+	value = Math.round(parseFloat(value));
+	if (!Number.isFinite(value)) { value = 50; }
+	value = Math.min(100, Math.max(1, value));
+	const slider = document.querySelector('#gif-export-scale');
+	const number = document.querySelector('#gif-export-scale-number');
+	const display = document.querySelector('#gif-export-scale-display');
+	if (slider) { slider.value = value; }
+	if (number) { number.value = value; }
+	if (display) { display.innerHTML = value + '%'; }
+}
+function getGifExportScale() {
+	const input = document.querySelector('#gif-export-scale');
+	const value = input ? parseInt(input.value, 10) : 50;
+	return Math.min(100, Math.max(1, Number.isFinite(value) ? value : 50));
+}
+function downloadBlob(blob, imageName) {
+	const downloadElement = document.createElement('a');
+	downloadElement.download = imageName;
+	downloadElement.target = '_blank';
+	downloadElement.href = URL.createObjectURL(blob);
+	document.body.appendChild(downloadElement);
+	downloadElement.click();
+	setTimeout(function() { URL.revokeObjectURL(downloadElement.href); downloadElement.remove(); }, 1000);
+}
+function waitMilliseconds(ms) {
+	return new Promise(resolve => setTimeout(resolve, ms));
+}
+function waitForAnimationFrame() {
+	return new Promise(resolve => requestAnimationFrame(resolve));
+}
+function loadScriptOnce(src) {
+	return new Promise((resolve, reject) => {
+		const existing = document.querySelector(`script[src="${src}"]`);
+		if (existing) {
+			if (existing.dataset.loaded == 'true') {
+				resolve();
+			} else if (existing.dataset.loaded == 'error') {
+				reject(new Error('Script failed to load: ' + src));
+			} else {
+				existing.addEventListener('load', resolve, {once: true});
+				existing.addEventListener('error', reject, {once: true});
+			}
+			return;
+		}
+		const script = document.createElement('script');
+		script.src = src;
+		script.async = true;
+		script.dataset.loaded = 'false';
+		script.onload = function() {
+			script.dataset.loaded = 'true';
+			resolve();
+		};
+		script.onerror = function(event) {
+			script.dataset.loaded = 'error';
+			reject(event);
+		};
+		document.head.appendChild(script);
+	});
+}
+function getLocalJsAssetUrl(filename, version) {
+	const cacheSuffix = version ? '?v=' + encodeURIComponent(version) : '';
+	return new URL('../js/' + filename + cacheSuffix, window.location.href).href;
+}
+async function loadGifExportLibrary() {
+	if (window.GIF) { return window.GIF; }
+	const sources = [
+		getLocalJsAssetUrl('gif.js', '0.2.0-local-1')
+	];
+	let lastError;
+	for (const source of sources) {
+		try {
+			await loadScriptOnce(source);
+			if (window.GIF) { return window.GIF; }
+		} catch (err) {
+			lastError = err;
+		}
+	}
+	if (!window.GIF) {
+		throw lastError || new Error('gif.js did not load');
+	}
+	return window.GIF;
+}
+function createGifFrameCanvas(sourceCanvas, width, height) {
+	const frameCanvas = document.createElement('canvas');
+	frameCanvas.width = width;
+	frameCanvas.height = height;
+	const frameContext = frameCanvas.getContext('2d', {willReadFrequently: true});
+	frameContext.fillStyle = '#123456';
+	frameContext.fillRect(0, 0, width, height);
+	frameContext.globalCompositeOperation = 'source-over';
+	frameContext.drawImage(sourceCanvas, 0, 0);
+	return frameCanvas;
+}
+async function captureBrowserSampledGifFrames(frameCanvases, exportContext, exportCanvas, gifWidth, gifHeight, defaultFrameCount, delayMilliseconds) {
+	// ====================== 优雅的可视化 GIF 导出加载弹窗 ======================
+	// 创建遮罩层
+	const overlay = document.createElement('div');
+	overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:999998;transition:opacity 0.3s;backdrop-filter:blur(3px);";
+	
+	// 创建居中弹窗
+	const modal = document.createElement('div');
+	modal.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%, -50%);width:min(90vw, 360px);background:#2c2c2c;border:1px solid #444;border-radius:12px;z-index:999999;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;padding:24px;box-shadow:0 15px 40px rgba(0,0,0,0.6);display:flex;flex-direction:column;align-items:center;text-align:center;";
+	
+	modal.innerHTML = `<h2 style="margin:0 0 20px 0;font-size:20px;font-weight:600;letter-spacing:0.5px;color:#eee;">提取特效卡牌</h2><div style="width:240px;height:336px;background:#1a1a1a;border:1px solid #333;border-radius:8px;display:flex;justify-content:center;align-items:center;overflow:hidden;margin-bottom:20px;box-shadow:inset 0 2px 10px rgba(0,0,0,0.5);"><img id="gifPreviewImage" src="" style="max-width:100%;max-height:100%;object-fit:contain;display:none;" /></div><div id="gifProgressText" style="font-size:15px;color:#aaa;margin-bottom:20px;line-height:1.4;">正在初始化引擎...</div><button id="closeModalBtn" style="background:#5271FF;color:#fff;border:none;padding:10px 24px;border-radius:6px;cursor:pointer;font-size:15px;font-weight:600;transition:background 0.2s;display:none;">关闭面板</button>`;
+
+	document.body.appendChild(overlay);
+	document.body.appendChild(modal);
+
+	const previewImage = document.getElementById('gifPreviewImage');
+	const progressText = document.getElementById('gifProgressText');
+	const closeModalBtn = document.getElementById('closeModalBtn');
+
+	const updateProgress = (text, isError = false) => {
+		progressText.innerHTML = text;
+		if (isError) progressText.style.color = '#ff6b6b';
+	};
+
+	const showCloseButton = (text = '关闭并继续导出') => {
+		closeModalBtn.innerText = text;
+		closeModalBtn.style.display = 'block';
+		closeModalBtn.onclick = () => {
+			overlay.remove();
+			modal.remove();
+		};
+	};
+
+	try {
+		if (artIsAnimatedGif && 'ImageDecoder' in window) {
+			updateProgress('正在下载原画并缓冲数据...');
+			const response = await fetch(art.src);
+			if (!response.ok) throw new Error('网络请求失败');
+			
+			const buffer = await response.arrayBuffer();
+			// 注意：这里需要依赖上层作用域的 decoder，通常是通过 new window.ImageDecoder 创建的
+			const decoder = new window.ImageDecoder({ data: buffer, type: 'image/gif' });
+			await decoder.tracks.ready;
+			const track = decoder.tracks.selectedTrack;
+			const actualFrameCount = track.frameCount;
+			
+			const originalArt = art;
+			
+			for (let i = 0; i < actualFrameCount; i++) {
+				updateProgress(`正在高保真合成帧: <span style="color:#fff;font-weight:bold;">${i+1}</span> / ${actualFrameCount}`);
+				const { image } = await decoder.decode({ frameIndex: i });
+				
+				const tempCanvas = document.createElement('canvas');
+				tempCanvas.width = image.displayWidth || originalArt.naturalWidth || image.width;
+				tempCanvas.height = image.displayHeight || originalArt.naturalHeight || image.height;
+				const tctx = tempCanvas.getContext('2d');
+				tctx.drawImage(image, 0, 0, tempCanvas.width, tempCanvas.height);
+				
+				const frameImg = new Image();
+				frameImg.width = originalArt.width; 
+				frameImg.height = originalArt.height;
+				
+				await new Promise(resolve => {
+					frameImg.onload = resolve;
+					frameImg.src = tempCanvas.toDataURL('image/png');
+				});
+				
+				art = frameImg;
+				drawCard(); 
+				
+				exportContext.clearRect(0, 0, gifWidth, gifHeight);
+				exportContext.drawImage(cardCanvas, 0, 0, gifWidth, gifHeight);
+				
+				const frameRendered = createGifFrameCanvas(exportCanvas, gifWidth, gifHeight);
+				const frameDelay = (image.duration || (delayMilliseconds * 1000)) / 1000;
+				
+				frameCanvases.push({ canvas: frameRendered, delay: frameDelay });
+				
+				previewImage.style.display = 'block';
+				previewImage.src = frameRendered.toDataURL('image/jpeg', 0.5);
+
+				image.close();
+				await waitMilliseconds(10);
+			}
+			
+			art = originalArt;
+			drawCard();
+			
+			updateProgress('提取完毕，即将开始压制并下载...');
+			await waitMilliseconds(800);
+			overlay.remove();
+			modal.remove();
+			return;
+		}
+
+		// ========= Fallback 传统 DOM 渲染 (无原生 ImageDecoder API 时使用) =========
+		updateProgress('正在使用屏幕渲染引擎获取帧数据...');
+		const frameCount = defaultFrameCount;
+
+		if (artIsAnimatedGif) {
+			setAnimatedArtHost(true);
+			let startWait = performance.now();
+			while (performance.now() - startWait < 300) {
+				await waitForAnimationFrame();
+			}
+		}
+
+		for (let i = 0; i < frameCount; i++) {
+			updateProgress(`正在截取屏幕帧: <span style="color:#fff;font-weight:bold;">${i+1}</span> / ${frameCount}`);
+			drawCard();
+			exportContext.clearRect(0, 0, gifWidth, gifHeight);
+			exportContext.drawImage(cardCanvas, 0, 0, gifWidth, gifHeight);
+			
+			const frameRendered = createGifFrameCanvas(exportCanvas, gifWidth, gifHeight);
+			frameCanvases.push({ canvas: frameRendered, delay: delayMilliseconds });
+			
+			previewImage.style.display = 'block';
+			previewImage.src = frameRendered.toDataURL('image/jpeg', 0.5);
+
+			if (artIsAnimatedGif) {
+				let startWaitFrame = performance.now();
+				while (performance.now() - startWaitFrame < delayMilliseconds) { await waitForAnimationFrame(); }
+			} else {
+				await waitMilliseconds(delayMilliseconds);
+			}
+		}
+
+		await waitMilliseconds(800);
+		overlay.remove();
+		modal.remove();
+
+	} catch (e) {
+		console.error('GIF提取异常:', e);
+		updateProgress(`提取失败: ${e.message}`, true);
+		showCloseButton();
+	}
+}
+
+// 保证后边匹配
+
+function createGifWithGifJs(frames, width, height, delayMilliseconds) {
+	return new Promise((resolve, reject) => {
+		const gif = new window.GIF({
+			workers: Math.min(2, frames.length),
+			quality: 10,
+			width: width,
+			height: height,
+			workerScript: getLocalJsAssetUrl('gif.worker.js', '0.2.0-local-1'),
+			transparent: 0x123456
+		});
+		gif.on('finished', function(blob) {
+			resolve(blob);
+		});
+		gif.on('abort', function() {
+			reject(new Error('gif.js render aborted'));
+		});
+		gif.on('error', function(err) {
+			reject(err instanceof Error ? err : new Error(String(err)));
+		});
+		try {
+			frames.forEach(function(frame) {
+				const canvas = frame.canvas || frame;
+				const delay = frame.delay || delayMilliseconds;
+				gif.addFrame(canvas.getContext('2d'), {copy: true, delay: delay});
+			});
+			gif.render();
+		} catch (err) {
+			reject(err);
+		}
+	});
+}
+function downloadDataUrl(dataUrl, imageName) {
+	const downloadElement = document.createElement('a');
+	downloadElement.download = imageName;
+	downloadElement.target = '_blank';
+	downloadElement.href = dataUrl;
+	document.body.appendChild(downloadElement);
+	downloadElement.click();
+	downloadElement.remove();
+}
+async function downloadGifCard() {
+	if (cardNeedsArtistCredit()) {
+		notify('You must credit an artist before downloading!', 5);
+		return;
+	}
+	const downloadGif = document.querySelector('#downloadGif');
+	if (downloadGif && downloadGif.dataset.exporting == 'true') { return; }
+	if (downloadGif) {
+		downloadGif.dataset.exporting = 'true';
+		downloadGif.innerHTML = 'GIF导出中...';
+	}
+	try {
+		const scale = getGifExportScale() / 100;
+		const gifWidth = Math.max(1, Math.round(cardCanvas.width * scale));
+		const gifHeight = Math.max(1, Math.round(cardCanvas.height * scale));
+		const frameCount = 20;
+		const delayCentiseconds = 10;
+		const exportCanvas = document.createElement('canvas');
+		exportCanvas.width = gifWidth;
+		exportCanvas.height = gifHeight;
+		const exportContext = exportCanvas.getContext('2d', {willReadFrequently: true});
+		await loadGifExportLibrary();
+		console.log('[CardConjurer] GIF export using local gif.js');
+		const frameCanvases = [];
+		notify('GIF导出已开始。比例越高，等待时间越长。', 4);
+		await captureBrowserSampledGifFrames(frameCanvases, exportContext, exportCanvas, gifWidth, gifHeight, frameCount, delayCentiseconds * 10);
+		const gifBlob = await createGifWithGifJs(frameCanvases, gifWidth, gifHeight, delayCentiseconds * 10);
+		downloadBlob(gifBlob, getCardName() + '.gif');
+		notify('GIF导出完成！', 4);
+	} catch (err) {
+		console.error('Failed to export GIF:', err);
+		notify('GIF导出失败。请确认本地GIF导出库已加载，或尝试降低导出比例。', 6);
+	} finally {
+		if (downloadGif) {
+			downloadGif.dataset.exporting = 'false';
+			downloadGif.innerHTML = '点击这里下载为GIF';
 		}
 	}
 }
